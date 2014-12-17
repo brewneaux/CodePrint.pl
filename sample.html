@@ -1,0 +1,463 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>vim_html_maker.pl</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v12">
+<meta name="syntax" content="perl">
+<meta name="settings" content="use_css,pre_wrap,no_foldcolumn,prevent_copy=">
+<meta name="colorscheme" content="none">
+<style type="text/css">
+pre {
+    white-space: pre-wrap;
+    font-family: Menlo, monospace;
+    color: #000000;
+    background-color: #ffffff;
+}
+
+body {
+    font-family: Menlo, monospace;
+    color: #000000;
+    background-color: #ffffff;
+    white-space: pre;
+
+}
+
+.Comment {
+    color: #555;
+    font-style: italic;
+}
+
+.Special {
+    color: #444;
+}
+
+.Identifier {
+    color: #000;
+    font-weight: bold;
+}
+
+.Statement {
+    color: #444;
+    font-weight: bold;
+}
+
+.PreProc {
+    color: #777777;
+}
+
+.LineNr {
+    color: #333;
+}
+
+.Error {
+    color: black;
+    font-weight: bold;
+}
+
+.Type {
+    color: black;
+    font-weight: bold;
+}
+
+.line {
+    font-size: 12px;
+    text-indent: -4em;
+    margin-left: 4em;
+    line-height: 1.2;
+}
+
+.fontchanger {
+    height: 40px;
+    width: 300px;
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    border-radius: 6px;
+}
+
+.increase, .decrease {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+  /* Chrome all / Safari all */
+    -moz-user-select: none;
+     /* Firefox all */
+    -ms-user-select: none;
+      /* IE 10+ */
+    font-size: 3em;
+    color: white;
+    vertical-align: center;
+    text-align: center;
+    background-color: #666;
+    border-radius: 5px;
+    width: 45px;
+    height: 45px;
+    margin-left: 15px;
+    float: left;
+}
+
+.currentSize {
+    float:left;
+    margin-top: 10px;   
+}
+@media print
+{    
+    .fontchanger
+    {
+        display: none !important;
+    }
+}
+</style>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script>$(document).ready(function() {
+    $(document.body).append( "<div class='fontchanger'><span class='increase' onclick='increaseFont()'>+</span><span class='decrease' onclick='decreaseFont()'>-</span></div>");
+});</script>
+<script>
+function increaseFont() {
+    var currentSize = parseInt($('.line').css("font-size"));
+    currentSize++;
+    $('.line').css("font-size",currentSize);
+    $('.currentSize').remove();
+    $('.fontchanger').append('<span class="currentSize"> The current font size is ' + currentSize + 'px</span>');
+}
+
+function decreaseFont() {
+    var currentSize = parseInt($('.line').css("font-size"));
+    currentSize--;
+    $('.line').css("font-size",currentSize);
+    $('.currentSize').remove();
+    $('.fontchanger').append('<span class="currentSize"> The current font size is ' + currentSize + 'px</span>');
+
+}
+</script>
+</head>
+<div class="line"><pre id='vimCodeElement'><br />12/17/2014 12:22:27 vim_html_maker.pl<br /></div><div class="line"><span class="LineNr">  1 </span><span class="PreProc">#!/usr/bin/perl</span>
+</div><div class="line"><span class="LineNr">  2 </span>
+</div><div class="line"><span class="LineNr">  3 </span><span class="Statement">use warnings</span>;
+</div><div class="line"><span class="LineNr">  4 </span><span class="Statement">use strict</span>;
+</div><div class="line"><span class="LineNr">  5 </span><span class="Statement">use </span>File::Copy;
+</div><div class="line"><span class="LineNr">  6 </span><span class="Statement">use </span>File::Basename;
+</div><div class="line"><span class="LineNr">  7 </span><span class="Statement">use </span>Data::Dumper;
+</div><div class="line"><span class="LineNr">  8 </span><span class="Statement">use </span>Getopt::Long;
+</div><div class="line"><span class="LineNr">  9 </span><span class="Statement">use </span>Mail::Sender;
+</div><div class="line"><span class="LineNr"> 10 </span>
+</div><div class="line"><span class="LineNr"> 11 </span><span class="Statement">my</span> <span class="Identifier">$input_file</span>;
+</div><div class="line"><span class="LineNr"> 12 </span><span class="Statement">my</span> <span class="Identifier">$send_email</span>;
+</div><div class="line"><span class="LineNr"> 13 </span><span class="Comment"># Lets the filename fly through</span>
+</div><div class="line"><span class="LineNr"> 14 </span>Getopt::Long::Configure(<span class="Constant">&quot;</span><span class="Constant">pass_through</span><span class="Constant">&quot;</span>);
+</div><div class="line"><span class="LineNr"> 15 </span>Getopt::Long::GetOptions(
+</div><div class="line"><span class="LineNr"> 16 </span>    <span class="Constant">'</span><span class="Constant">e|email</span><span class="Constant">'</span> =&gt; \<span class="Identifier">$send_email</span>
+</div><div class="line"><span class="LineNr"> 17 </span>);
+</div><div class="line"><span class="LineNr"> 18 </span>
+</div><div class="line"><span class="LineNr"> 19 </span><span class="Statement">if</span> (!<span class="Identifier">$ENV{</span><span class="Constant">'</span><span class="Constant">EMAIL_ADDY</span><span class="Constant">'</span><span class="Identifier">}</span>) {
+</div><div class="line"><span class="LineNr"> 20 </span>    <span class="Statement">print</span> <span class="Constant">&quot;</span><span class="Constant">There was no email address present in your environmental variable.</span>
+</div><div class="line"><span class="LineNr"> 21 </span><span class="Constant">    Use 'export EMAIL_ADDY=[your email]'' on the command line to set it until you log out, or add it to your .bashrc to make it forever.</span>
+</div><div class="line"><span class="LineNr"> 22 </span><span class="Constant">    </span><span class="Special">\n</span><span class="Constant">&quot;</span>; <span class="Statement">exit</span>;
+</div><div class="line"><span class="LineNr"> 23 </span>}
+</div><div class="line"><span class="LineNr"> 24 </span>
+</div><div class="line"><span class="LineNr"> 25 </span><span class="Identifier">$input_file</span> = <span class="Statement">shift</span>;
+</div><div class="line"><span class="LineNr"> 26 </span>
+</div><div class="line"><span class="LineNr"> 27 </span><span class="Statement">die</span> <span class="Constant">&quot;</span><span class="Special">\n</span><span class="Constant">You need to give an input file.</span><span class="Special">\n\n</span><span class="Constant">&quot;</span> <span class="Statement">if</span> <span class="Statement">not</span> <span class="Identifier">$input_file</span>;
+</div><div class="line"><span class="LineNr"> 28 </span>
+</div><div class="line"><span class="LineNr"> 29 </span><span class="Statement">chomp</span> <span class="Identifier">$input_file</span>;
+</div><div class="line"><span class="LineNr"> 30 </span>
+</div><div class="line"><span class="LineNr"> 31 </span><span class="Statement">my</span> <span class="Identifier">@files_to_run</span>;
+</div><div class="line"><span class="LineNr"> 32 </span><span class="Statement">my</span> <span class="Identifier">$print_files_to_run</span> = <span class="Constant">&quot;</span><span class="Special">\n</span><span class="Constant">The following files will be converted to HTML. Enter Y to continue.</span><span class="Special">\n</span><span class="Constant">&quot;</span>;
+</div><div class="line"><span class="LineNr"> 33 </span><span class="Statement">my</span> <span class="Identifier">@finished_files</span>;
+</div><div class="line"><span class="LineNr"> 34 </span>
+</div><div class="line"><span class="LineNr"> 35 </span><span class="Statement">if</span> (<span class="Statement">-d</span> <span class="Identifier">$input_file</span>) {
+</div><div class="line"><span class="LineNr"> 36 </span>    <span class="Statement">opendir</span>(<span class="Identifier">DIR</span>, <span class="Identifier">$input_file</span>);
+</div><div class="line"><span class="LineNr"> 37 </span>    <span class="Statement">while</span> (<span class="Statement">my</span> <span class="Identifier">$file</span> = <span class="Statement">readdir</span>(<span class="Identifier">DIR</span>)) {
+</div><div class="line"><span class="LineNr"> 38 </span>        <span class="Statement">if</span> (<span class="Statement">-f</span> <span class="Identifier">$input_file</span> . <span class="Identifier">$file</span>) {
+</div><div class="line"><span class="LineNr"> 39 </span>            <span class="Statement">push</span> <span class="Identifier">@files_to_run</span>, <span class="Identifier">$file</span>;
+</div><div class="line"><span class="LineNr"> 40 </span>            <span class="Identifier">$print_files_to_run</span> .= <span class="Constant">&quot;</span><span class="Special">\t</span><span class="Identifier">$file</span><span class="Constant"> </span><span class="Special">\n</span><span class="Constant">&quot;</span>;
+</div><div class="line"><span class="LineNr"> 41 </span>        }
+</div><div class="line"><span class="LineNr"> 42 </span>    }
+</div><div class="line"><span class="LineNr"> 43 </span>
+</div><div class="line"><span class="LineNr"> 44 </span>    <span class="Statement">print</span> <span class="Identifier">$print_files_to_run</span>;
+</div><div class="line"><span class="LineNr"> 45 </span>
+</div><div class="line"><span class="LineNr"> 46 </span>    <span class="Statement">my</span> <span class="Identifier">$ok_to_go</span> = &lt;&gt;;
+</div><div class="line"><span class="LineNr"> 47 </span>
+</div><div class="line"><span class="LineNr"> 48 </span>    <span class="Statement">chomp</span> <span class="Identifier">$ok_to_go</span>;
+</div><div class="line"><span class="LineNr"> 49 </span>
+</div><div class="line"><span class="LineNr"> 50 </span>    <span class="Statement">if</span> (<span class="Statement">lc</span>(<span class="Identifier">$ok_to_go</span>) <span class="Statement">ne</span> <span class="Constant">&quot;</span><span class="Constant">y</span><span class="Constant">&quot;</span>) {
+</div><div class="line"><span class="LineNr"> 51 </span>        <span class="Statement">exit</span>;
+</div><div class="line"><span class="LineNr"> 52 </span>    }
+</div><div class="line"><span class="LineNr"> 53 </span>
+</div><div class="line"><span class="LineNr"> 54 </span>    <span class="Statement">foreach</span> <span class="Statement">my</span> <span class="Identifier">$file_to_run</span> (<span class="Identifier">@files_to_run</span>) {
+</div><div class="line"><span class="LineNr"> 55 </span>        <span class="Statement">my</span> <span class="Identifier">$return</span> = buildHtml(<span class="Identifier">$input_file</span> . <span class="Identifier">$file_to_run</span>);
+</div><div class="line"><span class="LineNr"> 56 </span>        <span class="Statement">push</span> <span class="Identifier">@finished_files</span>, <span class="Identifier">$return</span>;
+</div><div class="line"><span class="LineNr"> 57 </span>    }
+</div><div class="line"><span class="LineNr"> 58 </span>}
+</div><div class="line"><span class="LineNr"> 59 </span><span class="Statement">else</span> {
+</div><div class="line"><span class="LineNr"> 60 </span>    <span class="Statement">my</span> <span class="Identifier">$return</span> = buildHtml(<span class="Identifier">$input_file</span>);
+</div><div class="line"><span class="LineNr"> 61 </span>    <span class="Statement">push</span> <span class="Identifier">@finished_files</span>, <span class="Identifier">$return</span>;
+</div><div class="line"><span class="LineNr"> 62 </span>}
+</div><div class="line"><span class="LineNr"> 63 </span>
+</div><div class="line"><span class="LineNr"> 64 </span><span class="Statement">my</span> <span class="Identifier">$file_msg_body</span> = <span class="Statement">join</span>(<span class="Constant">&quot;</span><span class="Special">\n\t</span><span class="Constant">&quot;</span>, <span class="Identifier">@finished_files</span>);
+</div><div class="line"><span class="LineNr"> 65 </span>
+</div><div class="line"><span class="LineNr"> 66 </span><span class="Statement">if</span> (<span class="Identifier">$send_email</span>) {
+</div><div class="line"><span class="LineNr"> 67 </span>    <span class="Statement">my</span> <span class="Identifier">$mail</span> = new Mail::Sender;
+</div><div class="line"><span class="LineNr"> 68 </span>
+</div><div class="line"><span class="LineNr"> 69 </span>    <span class="Statement">my</span> <span class="Identifier">%mail_args</span> = (
+</div><div class="line"><span class="LineNr"> 71 </span>        <span class="Constant">from</span> =&gt; <span class="Identifier">$ENV{</span><span class="Constant">'</span><span class="Constant">EMAIL_ADDY</span><span class="Constant">'</span><span class="Identifier">}</span>,
+</div><div class="line"><span class="LineNr"> 72 </span>        <span class="Constant">to</span> =&gt; <span class="Identifier">$ENV{</span><span class="Constant">'</span><span class="Constant">EMAIL_ADDY</span><span class="Constant">'</span><span class="Identifier">}</span>,
+</div><div class="line"><span class="LineNr"> 73 </span>        <span class="Constant">subject</span> =&gt; <span class="Constant">&quot;</span><span class="Constant">Your HTML converted Code</span><span class="Constant">&quot;</span>,
+</div><div class="line"><span class="LineNr"> 74 </span>        <span class="Constant">msg</span> =&gt; <span class="Constant">&quot;</span><span class="Constant">These files are also at:</span><span class="Special">\n\t</span><span class="Identifier">$file_msg_body</span><span class="Constant">&quot;</span>,
+</div><div class="line"><span class="LineNr"> 75 </span>        <span class="Constant">file</span> =&gt; <span class="Statement">join</span>(<span class="Constant">'</span><span class="Constant">, </span><span class="Constant">'</span>, <span class="Identifier">@finished_files</span>)
+</div><div class="line"><span class="LineNr"> 76 </span>    );
+</div><div class="line"><span class="LineNr"> 77 </span>    <span class="Identifier">$mail</span><span class="Identifier">-&gt;MailFile</span>(\<span class="Identifier">%mail_args</span>);
+</div><div class="line"><span class="LineNr"> 78 </span>}
+</div><div class="line"><span class="LineNr"> 79 </span>
+</div><div class="line"><span class="LineNr"> 80 </span><span class="Statement">print</span> <span class="Constant">&quot;</span><span class="Constant">Finished converting files. </span><span class="Special">\n\t</span><span class="Identifier">$file_msg_body</span><span class="Special">\n</span><span class="Constant">&quot;</span>;
+</div><div class="line"><span class="LineNr"> 81 </span>
+</div><div class="line"><span class="LineNr"> 82 </span><span class="Statement">sub </span><span class="Identifier">buildHtml </span>{
+</div><div class="line"><span class="LineNr"> 83 </span>
+</div><div class="line"><span class="LineNr"> 84 </span><span class="Statement">my</span> <span class="Identifier">$input_file</span> = <span class="Statement">shift</span>;
+</div><div class="line"><span class="LineNr"> 85 </span><span class="Comment"># Build out a bunch of filenames.</span>
+</div><div class="line"><span class="LineNr"> 86 </span><span class="Statement">my</span> <span class="Identifier">$input_file_html</span> = <span class="Identifier">$input_file</span> . <span class="Constant">'</span><span class="Constant">.html</span><span class="Constant">'</span>;
+</div><div class="line"><span class="LineNr"> 87 </span><span class="Statement">my</span> <span class="Identifier">$basename</span> = File::Basename::basename(<span class="Identifier">$input_file</span>);
+</div><div class="line"><span class="LineNr"> 88 </span><span class="Statement">my</span> <span class="Identifier">$base_html</span> = <span class="Identifier">$basename</span> . <span class="Constant">'</span><span class="Constant">.html</span><span class="Constant">'</span>;
+</div><div class="line"><span class="LineNr"> 89 </span><span class="Statement">my</span> <span class="Identifier">$temp_filename</span> = <span class="Constant">&quot;</span><span class="Constant">/tmp/</span><span class="Identifier">$ENV</span><span class="Identifier">{</span><span class="Constant">USER</span><span class="Identifier">}</span><span class="Constant">/</span><span class="Identifier">$base_html</span><span class="Constant">&quot;</span>;
+</div><div class="line"><span class="LineNr"> 90 </span><span class="Statement">my</span> <span class="Identifier">$print_dir</span> = <span class="Constant">&quot;</span><span class="Constant">/home/</span><span class="Identifier">$ENV</span><span class="Identifier">{</span><span class="Constant">USER</span><span class="Identifier">}</span><span class="Constant">/print/</span><span class="Constant">&quot;</span>;
+</div><div class="line"><span class="LineNr"> 91 </span><span class="Statement">my</span> <span class="Identifier">$output_file</span> = <span class="Constant">&quot;</span><span class="Identifier">$print_dir</span><span class="Constant">&quot;</span> . <span class="Identifier">$basename</span> . <span class="Constant">'</span><span class="Constant">.html</span><span class="Constant">'</span>;
+</div><div class="line"><span class="LineNr"> 92 </span>
+</div><div class="line"><span class="LineNr"> 93 </span><span class="Comment"># Make a user directory in tmp if it doesn't exist. This is only really necessary on DWH3, to stop permission overlaps</span>
+</div><div class="line"><span class="LineNr"> 94 </span><span class="Statement">if</span> (!<span class="Statement">-d</span> <span class="Constant">&quot;</span><span class="Constant">/tmp/</span><span class="Identifier">$ENV</span><span class="Identifier">{</span><span class="Constant">USER</span><span class="Identifier">}</span><span class="Constant">&quot;</span>) {
+</div><div class="line"><span class="LineNr"> 95 </span>    <span class="Statement">system</span>(<span class="Constant">&quot;</span><span class="Constant">mkdir /tmp/</span><span class="Identifier">$ENV</span><span class="Identifier">{</span><span class="Constant">USER</span><span class="Identifier">}</span><span class="Constant">&quot;</span>);
+</div><div class="line"><span class="LineNr"> 96 </span>}
+</div><div class="line"><span class="LineNr"> 97 </span>
+</div><div class="line"><span class="LineNr"> 98 </span><span class="Comment"># *********</span>
+</div><div class="line"><span class="LineNr"> 99 </span><span class="Comment"># This section keeps your print folder clean</span>
+</div><div class="line"><span class="LineNr">100 </span><span class="Comment"># *********</span>
+</div><div class="line"><span class="LineNr">101 </span>
+</div><div class="line"><span class="LineNr">102 </span><span class="Statement">my</span> <span class="Identifier">@filearray</span>;
+</div><div class="line"><span class="LineNr">103 </span>
+</div><div class="line"><span class="LineNr">104 </span><span class="Statement">my</span> (<span class="Identifier">$sec</span>,<span class="Identifier">$min</span>,<span class="Identifier">$hour</span>,<span class="Identifier">$mday</span>,<span class="Identifier">$mon</span>,<span class="Identifier">$year</span>,<span class="Identifier">$wday</span>,<span class="Identifier">$yday</span>,<span class="Identifier">$isdst</span>) = <span class="Statement">localtime</span>(<span class="Statement">time</span>);
+</div><div class="line"><span class="LineNr">105 </span><span class="Statement">my</span> <span class="Identifier">$datefilename_today</span> = (<span class="Identifier">$year</span> + <span class="Constant">1900</span>) . <span class="Identifier">$mon</span> + <span class="Constant">1</span> . <span class="Identifier">$mday</span>;
+</div><div class="line"><span class="LineNr">106 </span><span class="Statement">my</span> (<span class="Identifier">$ysec</span>,<span class="Identifier">$ymin</span>,<span class="Identifier">$yhour</span>,<span class="Identifier">$ymday</span>,<span class="Identifier">$ymon</span>,<span class="Identifier">$yyear</span>,<span class="Identifier">$ywday</span>,<span class="Identifier">$yyday</span>,<span class="Identifier">$yisdst</span>) = <span class="Statement">localtime</span>(<span class="Statement">time</span>() - <span class="Constant">24</span>*<span class="Constant">60</span>*<span class="Constant">60</span>);
+</div><div class="line"><span class="LineNr">107 </span><span class="Statement">my</span> <span class="Identifier">$datefilename_yesterday</span> = (<span class="Identifier">$yyear</span> + <span class="Constant">1900</span>) . <span class="Identifier">$ymon</span> + <span class="Constant">1</span> . <span class="Identifier">$ymday</span>;
+</div><div class="line"><span class="LineNr">108 </span>
+</div><div class="line"><span class="LineNr">109 </span><span class="Comment"># Create ~/print if it doesn't exist</span>
+</div><div class="line"><span class="LineNr">110 </span><span class="Statement">if</span> (!<span class="Statement">-d</span> <span class="Identifier">$print_dir</span>) {
+</div><div class="line"><span class="LineNr">111 </span>    <span class="Statement">system</span>(<span class="Constant">&quot;</span><span class="Constant">mkdir -p </span><span class="Identifier">$print_dir</span><span class="Constant">&quot;</span>);
+</div><div class="line"><span class="LineNr">112 </span>}
+</div><div class="line"><span class="LineNr">113 </span>
+</div><div class="line"><span class="LineNr">114 </span><span class="Comment"># If there are files in there already, and they have same name or are more than a day old, </span>
+</div><div class="line"><span class="LineNr">115 </span><span class="Comment"># Move them to an archive folder</span>
+</div><div class="line"><span class="LineNr">116 </span><span class="Statement">opendir</span> (<span class="Identifier">DIR</span>, <span class="Identifier">$print_dir</span>) <span class="Statement">or</span> <span class="Statement">die</span> <span class="Identifier">$!</span>;
+</div><div class="line"><span class="LineNr">117 </span><span class="Statement">while</span> (<span class="Statement">my</span> <span class="Identifier">$file</span> = <span class="Statement">readdir</span>(<span class="Identifier">DIR</span>)) {
+</div><div class="line"><span class="LineNr">118 </span>    <span class="Statement">push</span> <span class="Identifier">@filearray</span>, <span class="Identifier">$file</span> <span class="Statement">if</span> (<span class="Identifier">$file</span> <span class="Statement">eq</span> <span class="Identifier">$base_html</span>);
+</div><div class="line"><span class="LineNr">119 </span>}
+</div><div class="line"><span class="LineNr">120 </span>
+</div><div class="line"><span class="LineNr">121 </span>
+</div><div class="line"><span class="LineNr">122 </span><span class="Statement">if</span> (<span class="Identifier">@filearray</span>) {
+</div><div class="line"><span class="LineNr">123 </span>    <span class="Statement">foreach</span> <span class="Statement">my</span> <span class="Identifier">$filetwo</span> (<span class="Identifier">@filearray</span>) {
+</div><div class="line"><span class="LineNr">124 </span>        <span class="Statement">if</span> (<span class="Statement">-M</span> <span class="Identifier">$print_dir</span> . <span class="Identifier">$filetwo</span> &gt; <span class="Constant">1</span>) {
+</div><div class="line"><span class="LineNr">125 </span>            <span class="Statement">system</span>(<span class="Constant">&quot;</span><span class="Constant">mkdir -p ~/print/old/</span><span class="Identifier">$datefilename_yesterday</span><span class="Constant">&quot;</span>);
+</div><div class="line"><span class="LineNr">126 </span>            <span class="Statement">system</span>(<span class="Constant">&quot;</span><span class="Constant">mv ~/print/</span><span class="Identifier">$filetwo</span><span class="Constant"> ~/print/old/</span><span class="Identifier">$datefilename_yesterday</span><span class="Constant">/.</span><span class="Constant">&quot;</span>)
+</div><div class="line"><span class="LineNr">127 </span>        }
+</div><div class="line"><span class="LineNr">128 </span>        <span class="Statement">elsif</span> (<span class="Identifier">$filetwo</span> <span class="Statement">eq</span> <span class="Identifier">$base_html</span>) {
+</div><div class="line"><span class="LineNr">129 </span>            <span class="Statement">system</span>(<span class="Constant">&quot;</span><span class="Constant">mkdir -p ~/print/old/</span><span class="Identifier">$datefilename_today</span><span class="Constant">&quot;</span>);
+</div><div class="line"><span class="LineNr">130 </span>            <span class="Statement">system</span>(<span class="Constant">&quot;</span><span class="Constant">mv ~/print/</span><span class="Identifier">$filetwo</span><span class="Constant"> ~/print/old/</span><span class="Identifier">$datefilename_today</span><span class="Constant">/.</span><span class="Constant">&quot;</span>)
+</div><div class="line"><span class="LineNr">131 </span>        }
+</div><div class="line"><span class="LineNr">132 </span>    }
+</div><div class="line"><span class="LineNr">133 </span>}
+</div><div class="line"><span class="LineNr">134 </span>
+</div><div class="line"><span class="LineNr">135 </span>
+</div><div class="line"><span class="LineNr">136 </span>
+</div><div class="line"><span class="LineNr">137 </span><span class="Comment"># This does all the HTML magic - we are only using it to assign words their types.</span>
+</div><div class="line"><span class="LineNr">138 </span><span class="Statement">my</span> <span class="Identifier">$vim_command</span> = <span class="Constant">q(</span><span class="Constant">vim -E -s -c &quot;let g:html_no_progress=1&quot; -c &quot;let g:html_number_lines = 1&quot; -c &quot;syntax on&quot; -c &quot;runtime syntax/2html.vim&quot; -cwqa </span><span class="Constant">)</span> . <span class="Identifier">$input_file</span>;
+</div><div class="line"><span class="LineNr">139 </span>
+</div><div class="line"><span class="LineNr">140 </span><span class="Statement">`</span><span class="Identifier">$vim_command</span><span class="Statement">`</span>;
+</div><div class="line"><span class="LineNr">141 </span>
+</div><div class="line"><span class="LineNr">142 </span>File::Copy::move(<span class="Identifier">$input_file_html</span>, <span class="Identifier">$temp_filename</span>);
+</div><div class="line"><span class="LineNr">143 </span>
+</div><div class="line"><span class="LineNr">144 </span><span class="Comment"># This is a brand new, custom header that I wrote.  It does a lot of cool stuff, including:</span>
+</div><div class="line"><span class="LineNr">145 </span><span class="Comment">#   Black and white syntax highlighting, using bold, italics, and greys.</span>
+</div><div class="line"><span class="LineNr">146 </span><span class="Comment">#   Font size changing with a button</span>
+</div><div class="line"><span class="LineNr">147 </span>
+</div><div class="line"><span class="LineNr">148 </span><span class="Statement">my</span> <span class="Identifier">$new_header</span> = <span class="Constant">qq(</span>
+</div><div class="line"><span class="LineNr">149 </span><span class="Constant">&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.01//EN&quot; &quot;<a href="http://www.w3.org/TR/html4/strict.dtd">http://www.w3.org/TR/html4/strict.dtd</a>&quot;&gt;</span>
+</div><div class="line"><span class="LineNr">150 </span><span class="Constant">&lt;html&gt;</span>
+</div><div class="line"><span class="LineNr">151 </span><span class="Constant">&lt;head&gt;</span>
+</div><div class="line"><span class="LineNr">152 </span><span class="Constant">&lt;meta http-equiv=&quot;content-type&quot; content=&quot;text/html; charset=UTF-8&quot;&gt;</span>
+</div><div class="line"><span class="LineNr">153 </span><span class="Constant">&lt;title&gt;</span><span class="Identifier">$input_file</span><span class="Constant">&lt;/title&gt;</span><span class="Constant">)</span> . <span class="Constant">q(</span>
+</div><div class="line"><span class="LineNr">154 </span><span class="Constant">&lt;meta name=&quot;Generator&quot; content=&quot;Vim/7.3&quot;&gt;</span>
+</div><div class="line"><span class="LineNr">155 </span><span class="Constant">&lt;meta name=&quot;plugin-version&quot; content=&quot;vim7.3_v12&quot;&gt;</span>
+</div><div class="line"><span class="LineNr">156 </span><span class="Constant">&lt;meta name=&quot;syntax&quot; content=&quot;perl&quot;&gt;</span>
+</div><div class="line"><span class="LineNr">157 </span><span class="Constant">&lt;meta name=&quot;settings&quot; content=&quot;use_css,pre_wrap,no_foldcolumn,prevent_copy=&quot;&gt;</span>
+</div><div class="line"><span class="LineNr">158 </span><span class="Constant">&lt;meta name=&quot;colorscheme&quot; content=&quot;none&quot;&gt;</span>
+</div><div class="line"><span class="LineNr">159 </span><span class="Constant">&lt;style type=&quot;text/css&quot;&gt;</span>
+</div><div class="line"><span class="LineNr">160 </span><span class="Constant">pre {</span>
+</div><div class="line"><span class="LineNr">161 </span><span class="Constant">    white-space: pre-wrap;</span>
+</div><div class="line"><span class="LineNr">162 </span><span class="Constant">    font-family: Menlo, monospace;</span>
+</div><div class="line"><span class="LineNr">163 </span><span class="Constant">    color: #000000;</span>
+</div><div class="line"><span class="LineNr">164 </span><span class="Constant">    background-color: #ffffff;</span>
+</div><div class="line"><span class="LineNr">165 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">166 </span>
+</div><div class="line"><span class="LineNr">167 </span><span class="Constant">body {</span>
+</div><div class="line"><span class="LineNr">168 </span><span class="Constant">    font-family: Menlo, monospace;</span>
+</div><div class="line"><span class="LineNr">169 </span><span class="Constant">    color: #000000;</span>
+</div><div class="line"><span class="LineNr">170 </span><span class="Constant">    background-color: #ffffff;</span>
+</div><div class="line"><span class="LineNr">171 </span><span class="Constant">    white-space: pre;</span>
+</div><div class="line"><span class="LineNr">172 </span>
+</div><div class="line"><span class="LineNr">173 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">174 </span>
+</div><div class="line"><span class="LineNr">175 </span><span class="Constant">.Comment {</span>
+</div><div class="line"><span class="LineNr">176 </span><span class="Constant">    color: #555;</span>
+</div><div class="line"><span class="LineNr">177 </span><span class="Constant">    font-style: italic;</span>
+</div><div class="line"><span class="LineNr">178 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">179 </span>
+</div><div class="line"><span class="LineNr">180 </span><span class="Constant">.Special {</span>
+</div><div class="line"><span class="LineNr">181 </span><span class="Constant">    color: #444;</span>
+</div><div class="line"><span class="LineNr">182 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">183 </span>
+</div><div class="line"><span class="LineNr">184 </span><span class="Constant">.Identifier {</span>
+</div><div class="line"><span class="LineNr">185 </span><span class="Constant">    color: #000;</span>
+</div><div class="line"><span class="LineNr">186 </span><span class="Constant">    font-weight: bold;</span>
+</div><div class="line"><span class="LineNr">187 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">188 </span>
+</div><div class="line"><span class="LineNr">189 </span><span class="Constant">.Statement {</span>
+</div><div class="line"><span class="LineNr">190 </span><span class="Constant">    color: #444;</span>
+</div><div class="line"><span class="LineNr">191 </span><span class="Constant">    font-weight: bold;</span>
+</div><div class="line"><span class="LineNr">192 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">193 </span>
+</div><div class="line"><span class="LineNr">194 </span><span class="Constant">.PreProc {</span>
+</div><div class="line"><span class="LineNr">195 </span><span class="Constant">    color: #777777;</span>
+</div><div class="line"><span class="LineNr">196 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">197 </span>
+</div><div class="line"><span class="LineNr">198 </span><span class="Constant">.LineNr {</span>
+</div><div class="line"><span class="LineNr">199 </span><span class="Constant">    color: #333;</span>
+</div><div class="line"><span class="LineNr">200 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">201 </span>
+</div><div class="line"><span class="LineNr">202 </span><span class="Constant">.Error {</span>
+</div><div class="line"><span class="LineNr">203 </span><span class="Constant">    color: black;</span>
+</div><div class="line"><span class="LineNr">204 </span><span class="Constant">    font-weight: bold;</span>
+</div><div class="line"><span class="LineNr">205 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">206 </span>
+</div><div class="line"><span class="LineNr">207 </span><span class="Constant">.Type {</span>
+</div><div class="line"><span class="LineNr">208 </span><span class="Constant">    color: black;</span>
+</div><div class="line"><span class="LineNr">209 </span><span class="Constant">    font-weight: bold;</span>
+</div><div class="line"><span class="LineNr">210 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">211 </span>
+</div><div class="line"><span class="LineNr">212 </span><span class="Constant">.line {</span>
+</div><div class="line"><span class="LineNr">213 </span><span class="Constant">    font-size: 12px;</span>
+</div><div class="line"><span class="LineNr">214 </span><span class="Constant">    text-indent: -4em;</span>
+</div><div class="line"><span class="LineNr">215 </span><span class="Constant">    margin-left: 4em;</span>
+</div><div class="line"><span class="LineNr">216 </span><span class="Constant">    line-height: 1.2;</span>
+</div><div class="line"><span class="LineNr">217 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">218 </span>
+</div><div class="line"><span class="LineNr">219 </span><span class="Constant">.fontchanger {</span>
+</div><div class="line"><span class="LineNr">220 </span><span class="Constant">    height: 40px;</span>
+</div><div class="line"><span class="LineNr">221 </span><span class="Constant">    width: 300px;</span>
+</div><div class="line"><span class="LineNr">222 </span><span class="Constant">    position: fixed;</span>
+</div><div class="line"><span class="LineNr">223 </span><span class="Constant">    top: 10px;</span>
+</div><div class="line"><span class="LineNr">224 </span><span class="Constant">    right: 10px;</span>
+</div><div class="line"><span class="LineNr">225 </span><span class="Constant">    border-radius: 6px;</span>
+</div><div class="line"><span class="LineNr">226 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">227 </span>
+</div><div class="line"><span class="LineNr">228 </span><span class="Constant">.increase, .decrease {</span>
+</div><div class="line"><span class="LineNr">229 </span><span class="Constant">    cursor: pointer;</span>
+</div><div class="line"><span class="LineNr">230 </span><span class="Constant">    user-select: none;</span>
+</div><div class="line"><span class="LineNr">231 </span><span class="Constant">    -webkit-user-select: none;</span>
+</div><div class="line"><span class="LineNr">232 </span><span class="Constant">  /* Chrome all / Safari all */</span>
+</div><div class="line"><span class="LineNr">233 </span><span class="Constant">    -moz-user-select: none;</span>
+</div><div class="line"><span class="LineNr">234 </span><span class="Constant">     /* Firefox all */</span>
+</div><div class="line"><span class="LineNr">235 </span><span class="Constant">    -ms-user-select: none;</span>
+</div><div class="line"><span class="LineNr">236 </span><span class="Constant">      /* IE 10+ */</span>
+</div><div class="line"><span class="LineNr">237 </span><span class="Constant">    font-size: 3em;</span>
+</div><div class="line"><span class="LineNr">238 </span><span class="Constant">    color: white;</span>
+</div><div class="line"><span class="LineNr">239 </span><span class="Constant">    vertical-align: center;</span>
+</div><div class="line"><span class="LineNr">240 </span><span class="Constant">    text-align: center;</span>
+</div><div class="line"><span class="LineNr">241 </span><span class="Constant">    background-color: #666;</span>
+</div><div class="line"><span class="LineNr">242 </span><span class="Constant">    border-radius: 5px;</span>
+</div><div class="line"><span class="LineNr">243 </span><span class="Constant">    width: 45px;</span>
+</div><div class="line"><span class="LineNr">244 </span><span class="Constant">    height: 45px;</span>
+</div><div class="line"><span class="LineNr">245 </span><span class="Constant">    margin-left: 15px;</span>
+</div><div class="line"><span class="LineNr">246 </span><span class="Constant">    float: left;</span>
+</div><div class="line"><span class="LineNr">247 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">248 </span>
+</div><div class="line"><span class="LineNr">249 </span><span class="Constant">.currentSize {</span>
+</div><div class="line"><span class="LineNr">250 </span><span class="Constant">    float:left;</span>
+</div><div class="line"><span class="LineNr">251 </span><span class="Constant">    margin-top: 10px;   </span>
+</div><div class="line"><span class="LineNr">252 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">253 </span><span class="Constant">@media print</span>
+</div><div class="line"><span class="LineNr">254 </span><span class="Constant">{    </span>
+</div><div class="line"><span class="LineNr">255 </span><span class="Constant">    .fontchanger</span>
+</div><div class="line"><span class="LineNr">256 </span><span class="Constant">    {</span>
+</div><div class="line"><span class="LineNr">257 </span><span class="Constant">        display: none !important;</span>
+</div><div class="line"><span class="LineNr">258 </span><span class="Constant">    }</span>
+</div><div class="line"><span class="LineNr">259 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">260 </span><span class="Constant">&lt;/style&gt;</span>
+</div><div class="line"><span class="LineNr">261 </span><span class="Constant">&lt;script src=&quot;<a href="http://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js">http://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js</a>&quot;&gt;&lt;/script&gt;</span>
+</div><div class="line"><span class="LineNr">262 </span><span class="Constant">&lt;script&gt;$(document</span>)<span class="Constant">.ready(function(</span>)<span class="Constant"> {</span>
+</div><div class="line"><span class="LineNr">263 </span><span class="Constant">    $(document.body).append( &quot;&lt;div class='fontchanger'&gt;&lt;span class='increase' onclick='increaseFont()'&gt;+&lt;/span&gt;&lt;span class='decrease' onclick='decreaseFont()'&gt;-&lt;/span&gt;&lt;/div&gt;&quot;);</span>
+</div><div class="line"><span class="LineNr">264 </span><span class="Constant">});&lt;/script&gt;</span>
+</div><div class="line"><span class="LineNr">265 </span><span class="Constant">&lt;script&gt;</span>
+</div><div class="line"><span class="LineNr">266 </span><span class="Constant">function increaseFont(</span>)<span class="Constant"> {</span>
+</div><div class="line"><span class="LineNr">267 </span><span class="Constant">    var currentSize = parseInt($('.line'</span>)<span class="Constant">.css(&quot;font-size&quot;));</span>
+</div><div class="line"><span class="LineNr">268 </span><span class="Constant">    currentSize++;</span>
+</div><div class="line"><span class="LineNr">269 </span><span class="Constant">    $('.line'</span>)<span class="Constant">.css(&quot;font-size&quot;,currentSize</span>)<span class="Constant">;</span>
+</div><div class="line"><span class="LineNr">270 </span><span class="Constant">    $('.currentSize'</span>)<span class="Constant">.remove(</span>)<span class="Constant">;</span>
+</div><div class="line"><span class="LineNr">271 </span><span class="Constant">    $('.fontchanger'</span>)<span class="Constant">.append('&lt;span class=&quot;currentSize&quot;&gt; The current font size is ' + currentSize + 'px&lt;/span&gt;'</span>)<span class="Constant">;</span>
+</div><div class="line"><span class="LineNr">272 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">273 </span>
+</div><div class="line"><span class="LineNr">274 </span><span class="Constant">function decreaseFont(</span>)<span class="Constant"> {</span>
+</div><div class="line"><span class="LineNr">275 </span><span class="Constant">    var currentSize = parseInt($('.line'</span>)<span class="Constant">.css(&quot;font-size&quot;));</span>
+</div><div class="line"><span class="LineNr">276 </span><span class="Constant">    currentSize--;</span>
+</div><div class="line"><span class="LineNr">277 </span><span class="Constant">    $('.line'</span>)<span class="Constant">.css(&quot;font-size&quot;,currentSize</span>)<span class="Constant">;</span>
+</div><div class="line"><span class="LineNr">278 </span><span class="Constant">    $('.currentSize'</span>)<span class="Constant">.remove(</span>)<span class="Constant">;</span>
+</div><div class="line"><span class="LineNr">279 </span><span class="Constant">    $('.fontchanger'</span>)<span class="Constant">.append('&lt;span class=&quot;currentSize&quot;&gt; The current font size is ' + currentSize + 'px&lt;/span&gt;'</span>)<span class="Constant">;</span>
+</div><div class="line"><span class="LineNr">280 </span>
+</div><div class="line"><span class="LineNr">281 </span><span class="Constant">}</span>
+</div><div class="line"><span class="LineNr">282 </span><span class="Constant">&lt;/script&gt;</span>
+</div><div class="line"><span class="LineNr">283 </span><span class="Constant">&lt;/head&gt;</span>
+</div><div class="line"><span class="LineNr">284 </span><span class="Constant">)</span>;
+</div><div class="line"><span class="LineNr">285 </span>
+</div><div class="line"><span class="LineNr">286 </span><span class="Comment"># This first step figures out where we can start after our header is appended - I think it will always be the same but I'm not taking the chances.</span>
+</div><div class="line"><span class="LineNr">287 </span><span class="Statement">open</span> <span class="Statement">my</span> <span class="Identifier">$INPUT_FROM_VIM</span>, <span class="Constant">'</span><span class="Constant">&lt;</span><span class="Constant">'</span>, <span class="Identifier">$temp_filename</span>;
+</div><div class="line"><span class="LineNr">288 </span><span class="Statement">my</span> <span class="Identifier">$begin_line_number</span>;
+</div><div class="line"><span class="LineNr">289 </span><span class="Statement">my</span> <span class="Identifier">$i</span>;
+</div><div class="line"><span class="LineNr">290 </span>
+</div><div class="line"><span class="LineNr">291 </span><span class="Statement">while</span> (<span class="Statement">my</span> <span class="Identifier">$line_in</span> = &lt;<span class="Identifier">$INPUT_FROM_VIM</span>&gt;) {
+</div><div class="line"><span class="LineNr">292 </span>    <span class="Statement">last</span> <span class="Statement">if</span> (<span class="Identifier">$begin_line_number</span>);
+</div><div class="line"><span class="LineNr">293 </span>    <span class="Statement">if</span> (<span class="Identifier">$line_in</span> =~ <span class="Constant">'</span><span class="Constant">&lt;/head&gt;</span><span class="Constant">'</span>) {
+</div><div class="line"><span class="LineNr">294 </span>        <span class="Identifier">$begin_line_number</span> = <span class="Identifier">$i</span>;
+</div><div class="line"><span class="LineNr">295 </span>    }
+</div><div class="line"><span class="LineNr">296 </span>    <span class="Identifier">$i</span>++;
+</div><div class="line"><span class="LineNr">297 </span>}
+</div><div class="line"><span class="LineNr">298 </span>
+</div><div class="line"><span class="LineNr">299 </span><span class="Statement">open</span> <span class="Statement">my</span> <span class="Identifier">$OUTFILE</span>, <span class="Constant">'</span><span class="Constant">+&gt;</span><span class="Constant">'</span>, <span class="Identifier">$output_file</span> <span class="Statement">or</span> <span class="Statement">die</span> <span class="Constant">&quot;</span><span class="Constant">couldnt open output </span><span class="Identifier">$output_file</span><span class="Constant">&quot;</span>;
+</div><div class="line"><span class="LineNr">300 </span>
+</div><div class="line"><span class="LineNr">301 </span><span class="Statement">my</span> <span class="Identifier">$timestring</span> = (<span class="Identifier">$mon</span> +<span class="Constant">1</span>) . <span class="Constant">'</span><span class="Constant">/</span><span class="Constant">'</span> . <span class="Identifier">$mday</span> . <span class="Constant">'</span><span class="Constant">/</span><span class="Constant">'</span> . (<span class="Identifier">$year</span> + <span class="Constant">1900</span>) . <span class="Constant">&quot;</span><span class="Constant"> </span><span class="Identifier">$hour</span><span class="Constant">:</span><span class="Identifier">$min</span><span class="Constant">:</span><span class="Identifier">$sec</span><span class="Constant"> </span><span class="Identifier">$input_file</span><span class="Constant">&quot;</span>;
+</div><div class="line"><span class="LineNr">302 </span>
+</div><div class="line"><span class="LineNr">303 </span><span class="Statement">print</span> <span class="Identifier">$OUTFILE</span> <span class="Identifier">$new_header</span>;
+</div><div class="line"><span class="LineNr">304 </span><span class="Comment"># we wrap each line in a div to allow for the class indented-wrap stuff.</span>
+</div><div class="line"><span class="LineNr">305 </span><span class="Statement">while</span> (<span class="Statement">my</span> <span class="Identifier">$line_to_print</span> = &lt;<span class="Identifier">$INPUT_FROM_VIM</span>&gt;) {
+</div><div class="line"><pre id='vimCodeElement'><br />12/17/2014 12:22:27 vim_html_maker.pl<br /></div><div class="line"><pre id='vimCodeElement'><br />12/17/2014 12:22:27 vim_html_maker.pl<br /></div><div class="line"><span class="LineNr">308 </span>    } <span class="Statement">else</span> {
+</div><div class="line"><span class="LineNr">309 </span>    <span class="Statement">print</span> <span class="Identifier">$OUTFILE</span> <span class="Constant">'</span><span class="Constant">&lt;div class=&quot;line&quot;&gt;</span><span class="Constant">'</span> . <span class="Identifier">$line_to_print</span> . <span class="Constant">'</span><span class="Constant">&lt;/div&gt;</span><span class="Constant">'</span> <span class="Statement">if</span> (<span class="Identifier">$.</span> &gt; <span class="Identifier">$begin_line_number</span>);
+</div><div class="line"><span class="LineNr">310 </span>    }
+</div><div class="line"><span class="LineNr">311 </span>}
+</div><div class="line"><span class="LineNr">312 </span>
+</div><div class="line"><span class="LineNr">313 </span><span class="Statement">close</span> <span class="Identifier">$OUTFILE</span>;
+</div><div class="line"><span class="LineNr">314 </span><span class="Statement">close</span> <span class="Identifier">$INPUT_FROM_VIM</span>;
+</div><div class="line"><span class="LineNr">315 </span>
+</div><div class="line"><span class="LineNr">316 </span><span class="Comment"># Clean up after ourselves.</span>
+</div><div class="line"><span class="LineNr">317 </span><span class="Statement">if</span> (<span class="Statement">-e</span> <span class="Identifier">$input_file_html</span>) {
+</div><div class="line"><span class="LineNr">318 </span>    <span class="Statement">unlink</span> <span class="Identifier">$input_file_html</span>;
+</div><div class="line"><span class="LineNr">319 </span>}
+</div><div class="line"><span class="LineNr">320 </span><span class="Statement">if</span> (<span class="Statement">-e</span> <span class="Identifier">$temp_filename</span>){
+</div><div class="line"><span class="LineNr">321 </span>    <span class="Statement">unlink</span> <span class="Identifier">$temp_filename</span>;
+</div><div class="line"><span class="LineNr">322 </span>}
+</div><div class="line"><span class="LineNr">323 </span><span class="Comment"># print &quot;\n\nThere is now a file called $output_file.  Enjoy. \n\n&quot;;</span>
+</div><div class="line"><span class="LineNr">324 </span><span class="Statement">return</span> <span class="Identifier">$output_file</span>;
+</div><div class="line"><span class="LineNr">325 </span>}
+</div><div class="line"><span class="LineNr">326 </span>
+</div><div class="line"></pre>
+</div><div class="line"></body>
+</div><div class="line"></html>
+</div>
